@@ -1,0 +1,19 @@
+#raw data is too big for git see README
+data/raw/
+.DS_Store
+__pycache__/
+~$*
+#course handouts and class schedule stay on our computers only
+docs/iteration*.pdf
+docs/DS5020_Final_Project_Ideas.pdf
+docs/DS5020_Final_Presentations_Schedule*
+docs/Screenshot*
+
+#my personal study notes
+study-guide.md
+
+#jupyter autosave copies
+.ipynb_checkpoints/
+
+#my reading copy of my report part
+docs/margarita_part.pdf
