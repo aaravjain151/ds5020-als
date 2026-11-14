@@ -1,0 +1,119 @@
+% Margarita's part of the Iteration 2 report
+% paste each section into the Overleaf template under the matching heading
+% figures: upload the three png files from figures/ to Overleaf first
+
+%=====================================================================
+\section{Data}
+%=====================================================================
+
+\subsection{The real dataset MovieLens 100K}
+
+We use MovieLens 100K from GroupLens. It is a list of 100{,}000 ratings that 943 users gave to 1{,}682 movies, on a scale from 1 to 5 stars. Every user in the data rated at least 20 movies. So the dataset is small enough to run on a laptop, but it is real data from real people.
+
+Each line of the ratings file has four columns, which are user id, movie id, rating and time of the rating. All four columns are whole numbers (\texttt{int64}) and none of them has missing values. The movie file has one missing release date, but we do not use that column. So we did not need to remove any rows.
+
+\subsection{From the data to the math}
+
+We put the ratings into a matrix $R \in \mathbb{R}^{943 \times 1682}$. One row of $R$ is one user, one column is one movie, and one entry $r_{ui}$ is the number of stars user $u$ gave to movie $i$. If user $u$ did not rate movie $i$, the entry is unknown (it is not zero, we simply do not know it). The set of pairs $(u,i)$ with a known rating is called $\Omega$, and $|\Omega| = 100{,}000$. So the math in the next sections works only with the entries in $\Omega$ and tries to guess all the others.
+
+\subsection{What the data looks like}
+
+Only 6.3\% of the cells of $R$ have a rating (100{,}000 out of $943 \times 1682 = 1{,}586{,}126$). This means that 93.7\% of the matrix is empty, and guessing these empty cells is exactly the job of our method. So the data matches the problem, which is a big matrix with most values missing.
+
+Figure~\ref{fig:counts} shows how often each star value is given. People give 4 stars most often (34{,}174 times) and 1 star least often (6{,}110 times). The mean rating is 3.53 and the variance is 1.27. So a method that always guesses 3.53 is a natural simple baseline, and our method must do better than it.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.55\textwidth]{rating_counts.png}
+  \caption{Number of ratings for each star value.}
+  \label{fig:counts}
+\end{figure}
+
+Figure~\ref{fig:spread} shows that the ratings are not spread evenly. A typical (median) user rated 65 movies, but the most active user rated 737. A typical movie has 27 ratings, but 141 movies have only one rating. So for many movies we have very little information, and the guesses for these movies will be less reliable than for popular ones.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.9\textwidth]{ratings_per_user_and_movie.png}
+  \caption{Number of ratings per user on the left and per movie on the right.}
+  \label{fig:spread}
+\end{figure}
+
+\subsection{Train and test split}
+
+To measure how good our guesses are, we need ratings that the method never saw. MovieLens gives a ready split, \texttt{u1.base} with 80{,}000 ratings for training and \texttt{u1.test} with 20{,}000 ratings for testing. We will use this split in Iteration 3, because the instructions ask all teams to use it. So our test error can be compared with the other teams.
+
+%=====================================================================
+\section{Iteration 2 Math Questions}
+%=====================================================================
+
+\subsection*{Question 1 The objective}
+\textit{Owner Margarita Kholostova. Checked by \underline{\hspace{4cm}}}
+
+\textbf{Goal.} We want two thin matrices $U \in \mathbb{R}^{n_u \times k}$ and $V \in \mathbb{R}^{n_i \times k}$ such that $UV^\top$ is close to $R$ on the known ratings. Row $u_u^\top$ of $U$ is a list of $k$ numbers that describes user $u$, and row $v_i^\top$ of $V$ is a list of $k$ numbers that describes movie $i$. The guess for one rating is the dot product $\hat r_{ui} = u_u^\top v_i$.
+
+\textbf{Step 1. Error on one rating.} For one known pair $(u,i) \in \Omega$ the error of the guess is $r_{ui} - u_u^\top v_i$. We square it so that a guess that is too high and a guess that is too low both count as positive error (the rule we use is $x^2 \ge 0$ for every real $x$). So one rating adds $(r_{ui} - u_u^\top v_i)^2$ to the error.
+
+\textbf{Step 2. Add over the known ratings only.} We sum Step 1 over all pairs in $\Omega$. We do not sum over the empty cells, because we do not know their true values and treating them as zero would teach the method that every unseen movie gets 0 stars. So the data term is
+\[
+\sum_{(u,i)\in\Omega} \left(r_{ui} - u_u^\top v_i\right)^2 .
+\]
+
+\textbf{Step 3. Add a penalty for large numbers.} Each user has only a few ratings (some have 20), but $U$ and $V$ together have $k(n_u + n_i)$ free numbers. With so much freedom the method can fit the known ratings perfectly with very large values in $U$ and $V$ and then guess badly everywhere else (this is called overfitting). We add $\lambda\left(\|U\|_F^2 + \|V\|_F^2\right)$ with $\lambda > 0$, where $\|U\|_F^2 = \sum_{u}\sum_{j} U_{uj}^2$ is the squared Frobenius norm (the sum of the squares of all entries). So large values now cost more, and $\lambda$ controls how much.
+
+\textbf{Result.} Putting Step 2 and Step 3 together gives the objective
+\[
+J(U,V) = \sum_{(u,i)\in\Omega} \left(r_{ui} - u_u^\top v_i\right)^2 + \lambda\left(\|U\|_F^2 + \|V\|_F^2\right).
+\]
+
+\textbf{The same objective in matrix form.} Let $M$ be the 0/1 mask matrix with $M_{ui} = 1$ if $(u,i) \in \Omega$ and $0$ otherwise, and let $\odot$ be multiplication cell by cell. Then $\left[M \odot (R - UV^\top)\right]_{ui}$ equals $r_{ui} - u_u^\top v_i$ on known cells and $0$ on empty cells (by the definition of the matrix product $(UV^\top)_{ui} = u_u^\top v_i$). So
+\[
+J(U,V) = \left\| M \odot \left(R - UV^\top\right) \right\|_F^2 + \lambda\left(\|U\|_F^2 + \|V\|_F^2\right),
+\]
+and this is the exact line we use in the code (\texttt{objective} in \texttt{src/simulate.py}).
+
+\textbf{Conclusion.} $J$ is never negative, because it is a sum of squares and $\lambda > 0$. It is small only when the guesses are close to the known ratings and the numbers in $U$ and $V$ stay small at the same time. So finding good $U$ and $V$ means finding the smallest $J$, and the next questions show how ALS does this.
+
+%=====================================================================
+\section{Simulation Check}
+%=====================================================================
+
+\textbf{Why we simulate.} On real data we never know the true value of an empty cell, so we cannot fully check whether the method found the right answer. In a simulation we build the true matrix ourselves, hide part of it, and then compare the guesses with the values we hid. So the simulation tells us whether the method and our derivations work before we trust them on real data.
+
+\textbf{The model.} We build $R_{\text{true}} = AB$ with $A \in \mathbb{R}^{100\times 3}$ and $B \in \mathbb{R}^{3\times 80}$, both filled with standard normal numbers. A product of a $100\times3$ and a $3\times80$ matrix has rank at most 3, and our code confirms the rank is exactly 3. We add noise $0.1\,\varepsilon$ with $\varepsilon \sim \mathcal N(0,1)$ to every cell, like real ratings that are never perfect. Then we keep each cell with probability 0.3 and hide the rest. We use $k = 3$, $\lambda = 1$, 50 ALS steps and seed 0 (\texttt{np.random.default\_rng(0)}), so every team member gets the same numbers. So we know the true answer for every hidden cell.
+
+\textbf{Sample size.} The matrix has $100 \times 80 = 8{,}000$ cells. The code kept 2{,}281 of them (28.5\%), not exactly 30\%, because each cell is kept at random with probability 0.3. So the method had to guess 5{,}719 hidden values.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lll}
+\hline
+What we check & Expected & Result \\
+\hline
+Rank of $R_{\text{true}}$ & 3 & 3 \\
+$J$ at start, $J$ at end & goes down & 15{,}227.41 $\to$ 546.68 \\
+Largest change of $J$ between two steps & $\le 0$ & $-2.4\times10^{-5}$ \\
+RMSE of ALS on hidden cells & small (noise is 0.1) & 0.147 \\
+RMSE of filled SVD ($k=3$) on hidden cells & much larger & 1.394 \\
+RMSE of guessing 0 everywhere & reference & 1.764 \\
+\hline
+\end{tabular}
+\caption{Simulation results (from \texttt{src/simulate.py}).}
+\label{tab:sim}
+\end{table}
+
+\textbf{What the simulation confirms.}
+\begin{itemize}
+  \item \textbf{Q1 (objective).} The code computes $J$ with the matrix form of the formula, and $J$ goes from 15{,}227 to 547. So the formula measures the error in the way we derived.
+  \item \textbf{Q2 (update for one user).} Each step solves $(V_u^\top V_u + \lambda I)u_u = V_u^\top r_u$, and the error on hidden cells ends at 0.147, close to the noise level 0.1. So the update finds the hidden structure.
+  \item \textbf{Q4 (ALS never increases $J$).} The largest change between two steps is negative. So $J$ went down or stayed the same at every one of the 50 steps (Figure~\ref{fig:obj}).
+  \item \textbf{Q5 (SVD with missing values).} Filling empty cells with the mean and keeping 3 singular values gives an error of 1.394, almost as bad as guessing 0 everywhere (1.764). So the truncated SVD is the best choice for a full matrix but not when 70\% of it is missing, as Q5 says.
+\end{itemize}
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.55\textwidth]{simulation_objective.png}
+  \caption{Objective $J$ after each ALS step (log scale). It never goes up.}
+  \label{fig:obj}
+\end{figure}
+
+\textbf{Conclusion.} On a matrix where we know the answer, ALS recovers the hidden values with an error close to the noise we added, and the filled SVD does not. So our derivations hold on numbers, and we can move to the real data in Iteration 3.
