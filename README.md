@@ -21,7 +21,7 @@ We have a table of movie ratings where one row is one user and one column is one
 The raw data is not stored in git because the rules ask us to keep large raw files out. Download it once from the project folder with the commands below.
 
 ```
-cd data && mkdir -p raw && cd raw
+mkdir -p data/raw && cd data/raw
 curl -O https://files.grouplens.org/datasets/movielens/ml-100k.zip
 unzip ml-100k.zip
 ```

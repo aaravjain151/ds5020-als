@@ -11,6 +11,11 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parent.parent
 RAW = ROOT / "data" / "raw" / "ml-100k"
 
+#size of movielens 100k from its README
+#every file must give a matrix of this size so train and test line up
+N_USERS = 943
+N_MOVIES = 1682
+
 
 def load_ratings(file_name="u.data"):
     #each line is one rating with user id then movie id then stars then time
@@ -35,8 +40,10 @@ def load_movies():
 
 def build_rating_matrix(ratings):
     #one row of R is one user and one column of R is one movie
-    n_users = ratings["user_id"].max()
-    n_movies = ratings["movie_id"].max()
+    #always the full size and not the largest id in the file
+    #u1.test alone would give 462 by 1591
+    n_users = N_USERS
+    n_movies = N_MOVIES
 
     #start with an empty matrix full of zeros
     R = np.zeros((n_users, n_movies))

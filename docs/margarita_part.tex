@@ -10,7 +10,7 @@
 
 We use MovieLens 100K from GroupLens. It is a list of 100{,}000 ratings that 943 users gave to 1{,}682 movies, on a scale from 1 to 5 stars. Every user in the data rated at least 20 movies. So the dataset is small enough to run on a laptop, but it is real data from real people.
 
-Each line of the ratings file has four columns, which are user id, movie id, rating and time of the rating. All four columns are whole numbers (\texttt{int64}) and none of them has missing values. The movie file has one missing release date, but we do not use that column. So we did not need to remove any rows.
+Each line of the ratings file has four columns, which are user id, movie id, rating and time of the rating. All four columns are whole numbers (\texttt{int64}) and none of them has missing values. The movie file has one missing release date, an empty video release date column and 3 missing IMDb links, but we do not use these columns. So we did not need to remove any rows.
 
 \subsection{From the data to the math}
 
@@ -106,7 +106,7 @@ RMSE of guessing 0 everywhere & reference & 1.764 \\
   \item \textbf{Q1 (objective).} The code computes $J$ with the matrix form of the formula, and $J$ goes from 15{,}227 to 547. So the formula measures the error in the way we derived.
   \item \textbf{Q2 (update for one user).} Each step solves $(V_u^\top V_u + \lambda I)u_u = V_u^\top r_u$, and the error on hidden cells ends at 0.147, close to the noise level 0.1. So the update finds the hidden structure.
   \item \textbf{Q4 (ALS never increases $J$).} The largest change between two steps is negative. So $J$ went down or stayed the same at every one of the 50 steps (Figure~\ref{fig:obj}).
-  \item \textbf{Q5 (SVD with missing values).} Filling empty cells with the mean and keeping 3 singular values gives an error of 1.394, almost as bad as guessing 0 everywhere (1.764). So the truncated SVD is the best choice for a full matrix but not when 70\% of it is missing, as Q5 says.
+  \item \textbf{Q5 (SVD with missing values).} Filling empty cells with the mean and keeping 3 singular values gives an error of 1.394, almost as bad as guessing 0 everywhere (1.764). Part of this error comes from the filled values: filling with 0 and dividing by the share of known cells (0.285) gives 0.976, which is still much worse than ALS. So the truncated SVD is the best choice for a full matrix but not when 70\% of it is missing, as Q5 says.
 \end{itemize}
 
 \begin{figure}[h]
