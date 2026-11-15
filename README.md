@@ -42,3 +42,4 @@ We use only numpy, pandas, matplotlib and scipy. The easiest way to see everythi
 | Part | Owner |
 |---|---|
 | Data loading and description, simulation check, repository | Margarita |
+| Notation, assumptions, derivations Q2 to Q5 (math) | Madhu |
