@@ -43,4 +43,6 @@ We use only numpy, pandas, matplotlib and scipy. The easiest way to see everythi
 |---|---|
 | Data loading and description, simulation check, repository | Margarita |
 | Notation, assumptions, derivations Q2 to Q5 (math) | Madhu |
-| Algorithm as numbered steps with sizes and operation counts, Overleaf report, check of the data and simulation parts | Aarav |
+| Algorithm as numbered steps with sizes and operation counts, Overleaf report, check of the data, simulation, notation and Q2 to Q5 parts | Aarav |
+
+The full Iteration 2 report is `docs/report_iteration2.pdf`. Each section of the report names its owner and its checker, and Margarita leads Iteration 2.
