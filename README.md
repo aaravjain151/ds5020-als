@@ -43,3 +43,4 @@ We use only numpy, pandas, matplotlib and scipy. The easiest way to see everythi
 |---|---|
 | Data loading and description, simulation check, repository | Margarita |
 | Notation, assumptions, derivations Q2 to Q5 (math) | Madhu |
+| Algorithm as numbered steps with sizes and operation counts, Overleaf report, check of the data and simulation parts | Aarav |
