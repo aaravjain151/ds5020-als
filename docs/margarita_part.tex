@@ -5,6 +5,7 @@
 %=====================================================================
 \section{Data}
 %=====================================================================
+\textit{Owner Margarita Kholostova. Checked by Aarav Jain.}
 
 \subsection{The real dataset MovieLens 100K}
 
@@ -47,7 +48,7 @@ To measure how good our guesses are, we need ratings that the method never saw. 
 %=====================================================================
 
 \subsection*{Question 1 The objective}
-\textit{Owner Margarita Kholostova. Checked by Madhu Vadhani Madasamy}
+\textit{Owner Margarita Kholostova. Checked by Madhu Vadhani Madasamy.}
 
 \textbf{Goal.} We want two thin matrices $U \in \mathbb{R}^{n_u \times k}$ and $V \in \mathbb{R}^{n_i \times k}$ such that $UV^\top$ is close to $R$ on the known ratings. Row $u_u^\top$ of $U$ is a list of $k$ numbers that describes user $u$, and row $v_i^\top$ of $V$ is a list of $k$ numbers that describes movie $i$. The guess for one rating is the dot product $\hat r_{ui} = u_u^\top v_i$.
 
@@ -76,6 +77,7 @@ and this is the exact line we use in the code (\texttt{objective} in \texttt{src
 %=====================================================================
 \section{Simulation Check}
 %=====================================================================
+\textit{Owner Margarita Kholostova. Checked by Aarav Jain.}
 
 \textbf{Why we simulate.} On real data we never know the true value of an empty cell, so we cannot fully check whether the method found the right answer. In a simulation we build the true matrix ourselves, hide part of it, and then compare the guesses with the values we hid. So the simulation tells us whether the method and our derivations work before we trust them on real data.
 

@@ -4,8 +4,10 @@
 %=====================================================================
 
 %=====================================================================
-\subsection{T2: Notation and Definitions}
+\section{Notation and Definitions}
 %=====================================================================
+\textit{Owner Madhu Vadhani Madasamy. Checked by Aarav Jain.}
+
 
 We use the following notation throughout the matrix
 factorization and Alternating Least Squares (ALS) derivations.
@@ -30,7 +32,14 @@ $v_i$ & Latent-factor vector representing movie $i$ \\
 $k$ & Number of latent factors \\
 $\hat r_{ui}$ & Predicted rating for user $u$ and movie $i$ \\
 $\lambda$ & Regularization parameter, $\lambda > 0$ \\
+$\Omega_i$ & Set of users who rated movie $i$ \\
 $V_u$ & Matrix whose rows are $v_i^\top$ for $i\in\Omega_u$ \\
+$r_u$ & Vector of the ratings $r_{ui}$ for $i\in\Omega_u$ \\
+$U_i$ & Matrix whose rows are $u_u^\top$ for $u\in\Omega_i$ \\
+$r_i$ & Vector of the ratings $r_{ui}$ for $u\in\Omega_i$ \\
+$A_u$ & Coefficient matrix $V_u^\top V_u+\lambda I$ of the user update \\
+$\mu$ & Mean of the observed ratings \\
+$\odot$ & Entry-by-entry (Hadamard) product \\
 $M$ & Binary mask matrix indicating observed ratings \\
 $I$ & Identity matrix of appropriate dimension \\
 $\|\cdot\|_F$ & Frobenius norm \\
@@ -60,8 +69,10 @@ The regularization parameter $\lambda$ controls the penalty
 on large latent-factor values and helps reduce overfitting.
 
 %=====================================================================
-\subsection{T3: Assumptions and Their Limitations}
+\section{Assumptions and Their Limitations}
 %=====================================================================
+\textit{Owner Madhu Vadhani Madasamy. Checked by Margarita Kholostova.}
+
 
 Our matrix factorization and ALS approach relies on several
 assumptions. These include modeling assumptions and
@@ -128,7 +139,20 @@ If $\lambda$ is too small, the model may overfit the observed
 ratings. If it is too large, the model may underfit and fail
 to capture meaningful user preferences.
 
-\textbf{Assumption 6 (algorithmic condition): Each ALS subproblem is solved exactly.}
+\textbf{Assumption 6: Ratings are missing at random.}
+
+We assume that which movies a user rates does not depend on the
+rating the user would give. Then the ratings in $\Omega$ are a
+fair sample of all ratings, and an error that is small on
+$\Omega$ is also small on the missing entries.
+
+In practice people mostly watch and rate movies they expect to
+like, which is one reason the mean rating (3.53) is above the
+middle of the scale (3). If
+this assumption fails, the model learns from a sample that is
+too positive, and its predictions for unseen movies are too high.
+
+\textbf{Assumption 7 (algorithmic condition): Each ALS subproblem is solved exactly.}
 
 During an ALS iteration, we hold one factor matrix fixed
 while optimizing the other. We assume that each resulting
@@ -139,7 +163,7 @@ the objective function may not decrease at every iteration.
 
 %=====================================================================
 \subsection*{Question 2 Update for one user using normal equations}
-\textit{Owner Madhu Vadhani Madasamy. Checked by \underline{\hspace{4cm}}}
+\textit{Owner Madhu Vadhani Madasamy. Checked by Aarav Jain.}
 %=====================================================================
 
 \textbf{Goal.} Derive the optimal latent-factor vector for
@@ -237,6 +261,13 @@ $(V_u^\top V_u+\lambda I)u_u=V_u^\top r_u$, which is the system
 solved in the simulation check. The optimal user vector can be
 obtained by solving this linear system.
 
+Setting the gradient to zero only finds a stationary point. It
+is the minimum because the Hessian of $J_u$ is
+$2\left(\sum_{i\in\Omega_u}v_iv_i^\top+\lambda I\right)=2A_u$,
+which is positive definite by Question 3. So $J_u$ is strictly
+convex, and its only stationary point is its unique global
+minimizer.
+
 \textbf{Conclusion.} Instead of optimizing all entries of
 $U$ simultaneously, ALS updates one user vector at a time
 while keeping $V$ fixed. The same procedure can be repeated
@@ -244,7 +275,7 @@ for every user.
 
 %=====================================================================
 \subsection*{Question 3 Positive definiteness of the system}
-\textit{Owner Madhu Vadhani Madasamy. Checked by \underline{\hspace{4cm}}}
+\textit{Owner Madhu Vadhani Madasamy. Checked by Aarav Jain.}
 %=====================================================================
 
 \textbf{Goal.} Show that the coefficient matrix in the
@@ -255,6 +286,10 @@ Define the coefficient matrix
 A_u=
 \sum_{i\in\Omega_u}v_iv_i^\top+\lambda I.
 \]
+
+$A_u$ is symmetric, because $(v_iv_i^\top)^\top=v_iv_i^\top$
+for every $i$ and $I^\top=I$, and a sum of symmetric matrices is
+symmetric.
 
 A symmetric matrix $A_u$ is positive definite if
 \[
@@ -322,14 +357,17 @@ for every nonzero vector $x$.
 
 Hence, $A_u$ is symmetric positive definite.
 
-\textbf{Conclusion.} The positive definiteness guarantees
-that the normal equations have a unique solution. This
+\textbf{Conclusion.} If $A_ux=0$ for some $x\neq0$, then
+$x^\top A_ux=0$, which contradicts the result above. So the only
+solution of $A_ux=0$ is $x=0$, which means $A_u$ is invertible.
+The positive definiteness therefore guarantees that the normal
+equations have exactly one solution, $u_u=A_u^{-1}V_u^\top r_u$. This
 remains true even when a user has rated fewer movies than
 the number of latent factors, provided that $\lambda>0$.
 
 %=====================================================================
 \subsection*{Question 4 ALS never increases the objective}
-\textit{Owner Madhu Vadhani Madasamy. Checked by \underline{\hspace{4cm}}}
+\textit{Owner Madhu Vadhani Madasamy. Checked by Aarav Jain.}
 %=====================================================================
 
 \textbf{Goal.} Show that an exact ALS update cannot increase
@@ -357,6 +395,15 @@ approximate updates, this guarantee may not hold.
 \textbf{Step 1: Update the user factors.}
 
 Suppose the current matrices are $U^{(t)}$ and $V^{(t)}$.
+Every term of $J$ contains at most one user vector, so with $V$
+fixed the objective splits into one part per user:
+\[
+J(U,V)=\sum_{u=1}^{n_u}J_u(u_u)+\lambda\|V\|_F^2,
+\]
+where $J_u$ is the function from Question 2 and the last term
+does not depend on $U$. Minimizing each $J_u$ separately
+therefore minimizes $J$ over all of $U$. The same split, one
+part per movie, holds when $U$ is fixed.
 
 During the user update, $V^{(t)}$ remains fixed. Each
 user vector is updated by minimizing its corresponding
@@ -412,7 +459,7 @@ of the joint optimization problem.
 
 %=====================================================================
 \subsection*{Question 5 Truncated SVD with missing ratings}
-\textit{Owner Madhu Vadhani Madasamy. Checked by \underline{\hspace{4cm}}}
+\textit{Owner Madhu Vadhani Madasamy. Checked by Aarav Jain.}
 %=====================================================================
 
 \textbf{Goal.} Explain why ordinary truncated Singular
@@ -436,7 +483,8 @@ R_k=P_k\Sigma_k Q_k^\top.
 \]
 
 For a fully observed matrix, this is the best rank-$k$
-approximation under the Frobenius norm.
+approximation under the Frobenius norm (the Eckart--Young
+theorem).
 
 \textbf{Step 2: The missing-rating problem.}
 
@@ -486,9 +534,18 @@ J(U,V)=
 This directly accounts for missing entries by excluding
 them from the reconstruction error.
 
-In contrast, ordinary SVD applied to an imputed matrix
-optimizes a different objective that also includes the
-filled values.
+In contrast, by the Eckart--Young theorem the truncated SVD of
+the filled matrix minimizes, over all matrices $X$ of rank at
+most $k$,
+\[
+\|\widetilde R-X\|_F^2
+=\sum_{(u,i)\in\Omega}(r_{ui}-X_{ui})^2
++\sum_{(u,i)\notin\Omega}(\mu-X_{ui})^2 .
+\]
+The second sum is over the filled cells, which are 93.7\% of
+MovieLens. So most of the error that the SVD minimizes is
+distance to the made-up value $\mu$, not to real ratings, and
+the SVD is pulled toward predicting $\mu$ everywhere.
 
 \textbf{Conclusion.} Truncated SVD is mathematically
 optimal for a complete matrix under the rank constraint,
@@ -498,5 +555,5 @@ before applying SVD can introduce estimation errors.
 ALS is more appropriate for our incomplete MovieLens
 rating matrix because it optimizes the reconstruction
 error over observed entries only. This limitation applies
-to ordinary SVD on a complete matrix; specialized methods
-can be designed to handle missing entries directly.
+to ordinary SVD on a filled-in incomplete matrix; specialized
+methods can be designed to handle missing entries directly.

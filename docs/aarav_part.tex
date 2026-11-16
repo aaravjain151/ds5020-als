@@ -1,0 +1,104 @@
+% Aarav's part of the Iteration 2 report (task T9)
+% paste this section into the Overleaf template under the algorithm heading
+% the steps follow src/simulate.py line by line
+
+%=====================================================================
+\section{The Algorithm}
+%=====================================================================
+\textit{Owner Aarav Jain. Checked by Margarita Kholostova.}
+
+\textbf{What the algorithm does.} ALS finds $U$ and $V$ that make the objective $J(U,V)$ from Question~1 small. $J$ is hard to minimize over $U$ and $V$ at the same time, because the guess $u_u^\top v_i$ multiplies two unknowns. But if we fix $V$, then $J$ is a sum of separate least squares problems, one for each user, and each one has an exact answer (Question~2). The same is true for $V$ when $U$ is fixed. So ALS takes turns: it solves for all users, then for all movies, and repeats.
+
+\textbf{Sizes used below.} We count the cost in flops, where one flop is one addition or one multiplication of two real numbers. So a dot product of two vectors of length $n$ costs about $2n$ flops.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lll}
+\hline
+Symbol & Meaning & Size \\
+\hline
+$R$ & rating matrix & $n_u \times n_i$ \\
+$\Omega$ & set of known pairs $(u,i)$ & $|\Omega|$ pairs \\
+$\Omega_u$ & movies rated by user $u$ & $|\Omega_u|$ movies \\
+$\Omega_i$ & users who rated movie $i$ & $|\Omega_i|$ users \\
+$U$, row $u_u^\top$ & user factors & $n_u \times k$, row $1 \times k$ \\
+$V$, row $v_i^\top$ & movie factors & $n_i \times k$, row $1 \times k$ \\
+$V_u$ & rows of $V$ for the movies in $\Omega_u$ & $|\Omega_u| \times k$ \\
+$r_u$ & ratings of user $u$ on the movies in $\Omega_u$ & $|\Omega_u| \times 1$ \\
+$U_i$ & rows of $U$ for the users in $\Omega_i$ & $|\Omega_i| \times k$ \\
+$r_i$ & ratings of movie $i$ from the users in $\Omega_i$ & $|\Omega_i| \times 1$ \\
+$\lambda$, $T$ & penalty weight, number of rounds & numbers \\
+\hline
+\end{tabular}
+\caption{Sizes of everything the algorithm uses.}
+\label{tab:sizes}
+\end{table}
+
+Every known rating belongs to exactly one user and exactly one movie, so $\sum_u |\Omega_u| = \sum_i |\Omega_i| = |\Omega|$. We use this fact to add up the costs.
+
+\textbf{Input.} The matrix $R$, the mask $M$ (which gives $\Omega$), the number of factors $k$, the penalty $\lambda > 0$, the number of rounds $T$ and a random seed.
+
+\textbf{Output.} The factors $U$ and $V$, the guess $\hat R = UV^\top$, and the list of values $J_0, J_1, \dots, J_T$.
+
+\begin{enumerate}
+  \item \textbf{Start.} Fill $U \in \mathbb{R}^{n_u \times k}$ and $V \in \mathbb{R}^{n_i \times k}$ with random standard normal numbers, using the fixed seed. This makes $(n_u + n_i)k$ numbers and has no flops. So every run with the same seed starts from the same point.
+
+  \item \textbf{Starting objective.} Compute $J_0 = J(U,V)$ with the matrix form from Question~1. Our code builds the full product $UV^\top$, which costs $2 n_u n_i k$ flops, and then applies the mask. Using only the known cells would cost $2|\Omega| k$ flops, which is much less when the matrix is mostly empty. So $J_0$ is the reference that later values are compared with.
+
+  \item \textbf{Repeat for $t = 1, \dots, T$:}
+  \begin{enumerate}
+    \item \textbf{Update every user, with $V$ fixed.} For each user $u = 1, \dots, n_u$:
+    \begin{enumerate}
+      \item Take the rows of $V$ for the movies this user rated, which gives $V_u$ of size $|\Omega_u| \times k$, and the ratings $r_u$ of size $|\Omega_u| \times 1$. This only copies numbers.
+      \item Form the $k \times k$ matrix $A_u = V_u^\top V_u + \lambda I_k$. Each of the $k^2$ entries of $V_u^\top V_u$ is a dot product of length $|\Omega_u|$, so this costs $2|\Omega_u|k^2$ flops, plus $k$ flops to add $\lambda$ on the diagonal.
+      \item Form the vector $b_u = V_u^\top r_u$ of size $k \times 1$. This is $k$ dot products of length $|\Omega_u|$, so it costs $2|\Omega_u|k$ flops.
+      \item Solve $A_u u_u = b_u$ and store the answer as row $u$ of $U$. By Question~3, $A_u$ is symmetric positive definite, so this system always has exactly one answer, even for a user with very few ratings. Our code uses \texttt{np.linalg.solve}, which uses an LU factorization and costs about $\tfrac{2}{3}k^3 + 2k^2$ flops.
+    \end{enumerate}
+    Adding over all users with $\sum_u |\Omega_u| = |\Omega|$, this step costs about
+    \[
+    2|\Omega|\,k(k+1) + n_u\left(\tfrac{2}{3}k^3 + 2k^2\right) \text{ flops.}
+    \]
+
+    \item \textbf{Update every movie, with $U$ fixed.} For each movie $i = 1, \dots, n_i$, do the same four steps with the roles swapped: take $U_i$ and $r_i$, form $U_i^\top U_i + \lambda I_k$ and $U_i^\top r_i$, solve for $v_i$ and store it as row $i$ of $V$. This step uses the new $U$ from step 3(a). So this step costs about
+    \[
+    2|\Omega|\,k(k+1) + n_i\left(\tfrac{2}{3}k^3 + 2k^2\right) \text{ flops.}
+    \]
+
+    \item \textbf{Record the objective.} Compute $J_t = J(U,V)$ as in step 2. By Question~4, $J_t \le J_{t-1}$, so this list is also a check on the code: if $J$ ever goes up, there is a bug.
+  \end{enumerate}
+
+  \item \textbf{Stop.} Our code stops after a fixed number of rounds $T$ (we use $T = 50$). A common alternative is to stop when $J$ changes very little, for example when $(J_{t-1} - J_t)/J_{t-1} < 10^{-6}$. So the total cost of training is $T$ times the cost of one round.
+
+  \item \textbf{Predict.} The guess for any pair is $\hat r_{ui} = u_u^\top v_i$, which costs $2k$ flops for one pair. The full matrix $\hat R = UV^\top$ costs $2n_u n_i k$ flops. So we can guess every empty cell, including movies the user never rated.
+
+  \item \textbf{Measure the error.} On a set of hidden pairs $\Omega_{\text{test}}$, compute
+  \[
+  \text{RMSE} = \sqrt{\frac{1}{|\Omega_{\text{test}}|}\sum_{(u,i)\in\Omega_{\text{test}}} \left(r_{ui} - \hat r_{ui}\right)^2 },
+  \]
+  which costs about $2k\,|\Omega_{\text{test}}|$ flops when only those pairs are predicted. This is \texttt{rmse} in \texttt{src/simulate.py}.
+\end{enumerate}
+
+\textbf{Cost of one round.} Adding steps 3(a), 3(b) and 3(c) gives
+\[
+\underbrace{4|\Omega|\,k(k+1)}_{\text{forming the small systems}} \;+\; \underbrace{(n_u + n_i)\left(\tfrac{2}{3}k^3 + 2k^2\right)}_{\text{solving them}} \;+\; \underbrace{2 n_u n_i k}_{\text{computing } J \text{ (our code)}} \text{ flops.}
+\]
+The first term grows with the number of ratings, not with the size of the full matrix. So ALS works on the known ratings only, which is the point of the method. The second term is small because $k$ is small, and each system is only $k \times k$. The third term can be replaced by $2|\Omega|k$ by computing $J$ only on the known cells. Memory is $(n_u + n_i)k$ numbers for $U$ and $V$ plus one $k \times k$ matrix at a time.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lrrrr}
+\hline
+Case & $|\Omega|$ & $k$ & Forming & Solving \\
+\hline
+Simulation ($100 \times 80$) & 2{,}281 & 3 & $1.1\times10^{5}$ & $6.5\times10^{3}$ \\
+MovieLens training set & 80{,}000 & 10 & $3.5\times10^{7}$ & $2.3\times10^{6}$ \\
+MovieLens training set & 80{,}000 & 50 & $8.2\times10^{8}$ & $2.3\times10^{8}$ \\
+\hline
+\end{tabular}
+\caption{Flops for one round of ALS from the formula above (without computing $J$).}
+\label{tab:cost}
+\end{table}
+
+\begin{sloppypar}\textbf{Comparison with the truncated SVD.} The SVD baseline has three steps (function \texttt{svd\_baseline} in our code): fill every empty cell with the mean of the known ratings ($n_u n_i$ numbers to write), compute the SVD of the full filled matrix, and keep the top $k$ singular values to rebuild $R_k = U_k \Sigma_k V_k^\top$ ($2n_u n_i k$ flops). The SVD of an $n_u \times n_i$ matrix with $n_u \le n_i$ costs on the order of $n_u^2 n_i$ flops times a constant, which is about $1.5\times10^{9}$ times that constant for MovieLens. It runs once and needs no rounds. But it works on the full filled matrix, so 93.7\% of the numbers it uses are made up by the fill, and Question~5 shows why that hurts the guesses.\end{sloppypar}
+
+\textbf{Conclusion.} One round of ALS is $n_u + n_i$ small $k \times k$ systems, and the cost of building them grows with the number of known ratings. So the method stays cheap on a sparse matrix like MovieLens, and the list $J_0, \dots, J_T$ lets us check the code against Question~4 at every step.
