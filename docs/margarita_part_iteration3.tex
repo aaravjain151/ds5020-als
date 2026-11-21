@@ -1,0 +1,205 @@
+%=====================================================================
+\section{Simulation Test}
+%=====================================================================
+\textit{Owner Margarita Kholostova. Checked by \underline{\hspace{4cm}}}
+
+
+\textbf{What we test.} We run our own ALS (\texttt{my\_als} in \texttt{src/methods.py}, which solves every small system with our own Gaussian elimination) on the Iteration 2 simulation. The data, $k = 3$, $\lambda = 1$, 50 steps and seed 0 are the same as in Iteration 2. We compare the result with two things, the true matrix and a library.
+
+\subsection{Compare with the truth}
+
+The truth is $R_{\text{true}}$ on the 5{,}719 hidden cells. Our ALS has RMSE 0.147 on these cells, which is below the pass line 0.3 and close to the noise 0.1 that we added. It is not exactly 0.1, because each user vector $u_u$ is found from about 23 noisy ratings, so the noise also moves $U$ and $V$ a little. So the method finds the hidden values up to the size of the noise.
+
+\subsection{Compare with a library}
+
+The library version is the Iteration 2 function \texttt{als}, which solves the same systems with \texttt{numpy.linalg.solve}. Both start from the same random $U$ and $V$. After 50 steps the largest difference between the two matrices $UV^\top$ is $5.4\times10^{-15}$. For one user the two solutions of $(V_u^\top V_u + \lambda I)u_u = V_u^\top r_u$ differ by $5.6\times10^{-17}$, and putting our $u_u$ back into the system gives a largest residual of $1.8\times10^{-15}$. These numbers are rounding error: both codes compute the same formula from the same data, and a float keeps about 16 digits. So our Gaussian elimination is correct.
+
+\subsection{Error against the size of the matrix}
+
+We repeat the simulation for four sizes with the same shape and the same 30\% of known cells (Table~\ref{tab:sizes}, Figure~\ref{fig:sizes}).
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lll}
+\hline
+Size $n_u \times n_i$ & Known cells & RMSE on hidden cells \\
+\hline
+$50 \times 40$ & 592 & 0.414 \\
+$100 \times 80$ & 2{,}281 & 0.147 \\
+$200 \times 160$ & 9{,}601 & 0.057 \\
+$400 \times 320$ & 38{,}283 & 0.033 \\
+\hline
+\end{tabular}
+\caption{Error against the truth for bigger matrices (from \texttt{src/check\_simulation.py}).}
+\label{tab:sizes}
+\end{table}
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.55\textwidth]{simulation_error_vs_size.png}
+  \caption{RMSE on hidden cells against the number of users (log--log axes).}
+  \label{fig:sizes}
+\end{figure}
+
+The error shrinks as the matrix grows. From 100 users up the slope on the log--log plot is $-1.08$. When $n_u$ doubles, the number of known cells $N$ grows 4 times, so a slope of $-1$ in $n_u$ is a slope of $-1/2$ in $N$, which is the usual $1/\sqrt{N}$ rate of a sampling error. The smallest matrix does not pass (0.414), because a user there has only about 12 known ratings for 3 unknown numbers. So with more data the guesses get closer to the truth, as the math says.
+
+\subsection{Stress test with fewer known cells}
+
+Our method assumes that every user and every movie has enough known ratings. We break this on purpose and lower the share of known cells (Table~\ref{tab:stress}, Figure~\ref{fig:stress}).
+
+\begin{table}[h]
+\centering
+\begin{tabular}{llll}
+\hline
+Share known & Ratings per user (mean, min) & RMSE on hidden cells & $J$ never increases \\
+\hline
+0.30 & 22.8, 10 & 0.147 & yes \\
+0.20 & 15.3, 6 & 0.263 & yes \\
+0.15 & 11.5, 4 & 0.416 & yes \\
+0.10 & 8.2, 1 & 1.372 & yes \\
+0.07 & 6.0, 1 & 1.857 & yes \\
+0.05 & 4.2, 0 & 1.810 & yes \\
+\hline
+\end{tabular}
+\caption{Stress test on the $100 \times 80$ simulation (from \texttt{src/check\_simulation.py}).}
+\label{tab:stress}
+\end{table}
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.55\textwidth]{stress_test_known_share.png}
+  \caption{RMSE on hidden cells against the share of known cells.}
+  \label{fig:stress}
+\end{figure}
+
+ALS stops recovering the matrix between 20\% and 15\% of known cells: at 20\% it still passes (0.263) and at 15\% it does not (0.416). At 10\% the error is 1.372, as bad as the filled SVD (1.394). The reason is in the system for one user. The vector $u_u$ has $k = 3$ unknown numbers, so it needs at least 3 ratings to be fixed by the data. At 10\% one user has a single rating and at 5\% one user has none, and then $V_u^\top V_u$ has rank below 3 and only $\lambda I$ keeps the system solvable (Iteration 2, Question 3). The system still has a solution, but the solution comes mostly from the penalty and not from the data.
+
+In all six runs $J$ never increases. So Question 4 of Iteration 2 holds even when the method fails: a small $J$ on the known cells does not mean good guesses on the hidden cells.
+
+%=====================================================================
+\section{Real Data}
+%=====================================================================
+\textit{Owner Margarita Kholostova. Checked by \underline{\hspace{4cm}}}
+
+
+\subsection{Cleaning and split}
+
+We use the split that MovieLens provides, \texttt{u1.base} for training and \texttt{u1.test} for testing, as the instructions ask. Table~\ref{tab:clean} lists every step.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{ll}
+\hline
+Step & Number \\
+\hline
+Ratings in \texttt{u1.base} (train) & 80{,}000 \\
+Ratings in \texttt{u1.test} (test) & 20{,}000 \\
+Rows removed & 0 \\
+Cells that are in both train and test & 0 \\
+Size of both matrices & $943 \times 1682$ \\
+Transformations of the ratings & none (stars 1 to 5 as given) \\
+Users with no train rating & 0 \\
+Fewest train ratings for one user & 4 \\
+Movies with no train rating & 32 \\
+Test ratings on these 32 movies & 32 \\
+\hline
+\end{tabular}
+\caption{Cleaning steps and the split (from \texttt{src/run\_real.py}).}
+\label{tab:clean}
+\end{table}
+
+For the 32 movies with no train rating the system for $v_i$ is $\lambda I\, v_i = 0$, so $v_i = 0$ and the guess is 0 stars. We keep these 32 test ratings, because removing them would make our error look better than it is. They are 0.16\% of the test set.
+
+%=====================================================================
+\section{Iteration 3 Math Questions}
+%=====================================================================
+
+\subsection*{Question 3 Truncated SVD baseline with the mean}
+\textit{Owner Margarita Kholostova. Checked by \underline{\hspace{4cm}}}
+
+\textbf{Step 1. Fill.} Let $\mu$ be the mean of the known train ratings ($\mu = 3.528$). We build a full matrix $\tilde R$ with $\tilde r_{ui} = r_{ui}$ if $(u,i) \in \Omega$ and $\tilde r_{ui} = \mu$ otherwise.
+
+\textbf{Step 2. SVD.} $\tilde R$ has no empty cells, so it has an SVD $\tilde R = P \Sigma Q^\top$.
+
+\textbf{Step 3. Cut.} We keep the $k$ largest singular values, $\tilde R_k = P_k \Sigma_k Q_k^\top$. By the Eckart--Young theorem (Iteration 2, Question 5) $\tilde R_k$ is the closest rank-$k$ matrix to $\tilde R$ in the Frobenius norm. The guess for user $u$ and movie $i$ is the entry $(u,i)$ of $\tilde R_k$.
+
+\textbf{Result.} On the simulation the filled SVD has RMSE 1.394 on the hidden cells and ALS has 0.147. On MovieLens the test RMSE is 1.099, 1.085, 1.080 and 1.083 for $k = 2, 5, 10, 20$.
+
+\textbf{Conclusion.} $\tilde R_k$ is the best fit to $\tilde R$, but 95\% of the cells of $\tilde R$ are the number $\mu$ that we put there ourselves (80{,}000 real ratings out of 1{,}586{,}126 cells). So the SVD mostly learns our filling and not the ratings, and on MovieLens it is even worse than the mean of each movie (1.033). The SVD here is \texttt{numpy.linalg.svd}, because it is only a baseline to compare with and not our method.
+
+\subsection*{Question 4 Train and test split and the test RMSE}
+\textit{Owner Margarita Kholostova. Checked by \underline{\hspace{4cm}}}
+
+\textbf{Definition.} Let $\Omega_{\text{test}}$ be the set of the 20{,}000 test pairs. The method never sees them. We find $U$ and $V$ from the train pairs only and then compute
+\[
+\text{RMSE}_{\text{test}} = \sqrt{\frac{1}{|\Omega_{\text{test}}|} \sum_{(u,i) \in \Omega_{\text{test}}} \left(r_{ui} - u_u^\top v_i\right)^2 } .
+\]
+It is measured in stars, so an RMSE of 1 means that a typical guess is wrong by about one star.
+
+\textbf{Baselines.} Guessing $\mu = 3.528$ for everything gives 1.154. Guessing the mean train rating of each movie gives 1.033 (a movie with no train rating gets $\mu$).
+
+\textbf{Result.} Table~\ref{tab:grid} gives the test RMSE of our ALS after 50 steps with seed 0 (Figure~\ref{fig:grid}).
+
+\begin{table}[h]
+\centering
+\begin{tabular}{llll}
+\hline
+ & $\lambda = 0.1$ & $\lambda = 1$ & $\lambda = 10$ \\
+\hline
+$k = 2$ & 0.950 & \textbf{0.940} & 0.991 \\
+$k = 5$ & 1.071 & 0.973 & 0.984 \\
+$k = 10$ & 1.332 & 1.074 & 0.986 \\
+$k = 20$ & 1.539 & 1.201 & 0.998 \\
+\hline
+\end{tabular}
+\caption{Test RMSE of ALS on \texttt{u1.test}. The movie mean baseline is 1.033 (from \texttt{src/run\_real.py}).}
+\label{tab:grid}
+\end{table}
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.6\textwidth]{real_test_rmse.png}
+  \caption{Test RMSE against $k$ for each $\lambda$. The dashed line is the movie mean baseline.}
+  \label{fig:grid}
+\end{figure}
+
+\textbf{What the table shows.}
+\begin{itemize}
+  \item The best result is 0.940 at $k = 2$ and $\lambda = 1$. It is 9\% better than the movie mean (1.033), and 7 of the 12 settings beat this baseline.
+  \item With a small $\lambda$ a bigger $k$ makes the test error worse. At $k = 20$ and $\lambda = 0.1$ the train RMSE is 0.470 but the test RMSE is 1.539. This is the overfitting from Step 3 of Question 1 in Iteration 2: some users have only 4 train ratings, and 20 free numbers fit 4 ratings perfectly.
+  \item With $\lambda = 10$ the test error stays between 0.984 and 0.998 for every $k$. So the penalty does the job we added it for.
+\end{itemize}
+
+\textbf{Check with a library.} At the best setting we ran the Iteration 2 \texttt{als} (with \texttt{numpy.linalg.solve}) from the same start. The largest difference in $UV^\top$ over all $943 \times 1682$ cells is $1.3\times10^{-13}$, and the two test RMSE values are the same to 10 digits (0.9398201282). The difference is larger than on the simulation ($5.4\times10^{-15}$), because the real matrix has 2{,}625 systems per step instead of 180 and the ratings are larger numbers, so more rounding errors add up. It is still rounding error and not a sign or scaling convention: both codes start from the same $U$ and $V$, and each system has one solution (Iteration 2, Question 3), so there is nothing to align.
+
+\textbf{Conclusion.} On ratings that the method never saw, our ALS guesses within about 0.94 stars. This is better than both simple baselines and than the filled SVD. So the method works on real data and not only on the simulation, if $k$ is small or $\lambda$ is large enough.
+
+%=====================================================================
+\section{Verification Table}
+%=====================================================================
+\textit{Owner Margarita Kholostova. Checked by \underline{\hspace{4cm}}}
+
+% rows for the simulation and the real data
+% the row for the small example comes from src/small_example.py (T17), add it at the top
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{lllll}
+\hline
+Data & Quantity & Compared with & Difference & Pass? \\
+\hline
+Simulation & $UV^\top$, hidden cells & $R_{\text{true}}$ & RMSE $= 0.147$ & yes \\
+Simulation & $UV^\top$ & ALS with numpy solve & $\max|\cdot| = 5.4\times10^{-15}$ & yes \\
+Simulation & $u_u$ for one user & numpy solve & $\max|\cdot| = 5.6\times10^{-17}$ & yes \\
+Simulation & largest step of $J$ & $\le 0$ & $-2.4\times10^{-5}$ & yes \\
+Simulation & filled SVD, hidden cells & ALS (0.147) & RMSE $= 1.394$ & yes \\
+Stress test (10\% known) & $UV^\top$, hidden cells & $R_{\text{true}}$ & RMSE $= 1.372$ & fails \\
+Real data & $UV^\top$ & ALS with numpy solve & $\max|\cdot| = 1.3\times10^{-13}$ & yes \\
+Real data & test RMSE & movie mean (1.033) & 0.940 & yes \\
+Real data (12 runs) & largest step of $J$ & $\le 10^{-9}$ & 12 of 12 & yes \\
+\hline
+\end{tabular}
+\caption{Verification table for the simulation and the real data.}
+\label{tab:verify}
+\end{table}
