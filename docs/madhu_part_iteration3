@@ -1,0 +1,203 @@
+
+%=====================================================================
+% Madhu Vadhani Madasamy - Iteration 3 Contributions
+%=====================================================================
+
+%=====================================================================
+\section{Small Worked Example: One Complete ALS Iteration}
+%=====================================================================
+\textit{Owner Madhu Vadhani Madasamy. Checked by Margarita Kholostova and Aarav Jain.}
+
+\subsection{Problem Setup}
+
+To illustrate one complete Alternating Least Squares (ALS)
+iteration, we consider a small rating matrix containing three
+users and three movies, with two missing ratings.
+
+The rating matrix is
+
+\[
+R =
+\begin{bmatrix}
+5 & ? & 1\\
+4 & 2 & ?\\
+? & 3 & 5
+\end{bmatrix}.
+\]
+
+The latent factor dimension is set to $k=1$, and the
+regularization parameter is $\lambda=1$.
+
+We initialize all movie latent factors to one:
+
+\[
+V^{(0)} =
+\begin{bmatrix}
+1\\
+1\\
+1
+\end{bmatrix}.
+\]
+
+Missing ratings are excluded from the least-squares
+calculations rather than treated as zero.
+
+\subsection{Step 1: Updating User Factors}
+
+Keeping the movie factors fixed, each user factor is
+updated by minimizing the regularized least-squares
+objective.
+
+For $k=1$, the update is
+
+\[
+u_u =
+\frac{\displaystyle\sum_{i\in\Omega_u}r_{ui}v_i}
+{\displaystyle\lambda+
+\sum_{i\in\Omega_u}v_i^2}.
+\]
+
+For User 1, the observed ratings are 5 and 1:
+
+\[
+u_1 =
+\frac{5(1)+1(1)}{1+1^2+1^2}
+=\frac{6}{3}=2.
+\]
+
+For User 2, the observed ratings are 4 and 2:
+
+\[
+u_2 =
+\frac{4(1)+2(1)}{1+1^2+1^2}
+=\frac{6}{3}=2.
+\]
+
+For User 3, the observed ratings are 3 and 5:
+
+\[
+u_3 =
+\frac{3(1)+5(1)}{1+1^2+1^2}
+=\frac{8}{3}.
+\]
+
+Therefore, the updated user factor vector is
+
+\[
+U^{(1)} =
+\begin{bmatrix}
+2\\
+2\\
+\frac{8}{3}
+\end{bmatrix}.
+\]
+
+\subsection{Step 2: Updating Movie Factors}
+
+Next, we keep the newly updated user factors fixed
+and update each movie factor.
+
+The update is
+
+\[
+v_i =
+\frac{\displaystyle\sum_{u\in\Omega_i}r_{ui}u_u}
+{\displaystyle\lambda+
+\sum_{u\in\Omega_i}u_u^2}.
+\]
+
+For Movie 1, the observed ratings are 5 and 4:
+
+\[
+v_1 =
+\frac{5(2)+4(2)}
+{1+2^2+2^2}
+=\frac{18}{9}=2.
+\]
+
+For Movie 2, the observed ratings are 2 and 3:
+
+\[
+v_2 =
+\frac{2(2)+3(\frac{8}{3})}
+{1+2^2+(\frac{8}{3})^2}.
+\]
+
+\[
+=\frac{12}{1+4+\frac{64}{9}}
+=\frac{12}{\frac{109}{9}}
+=\frac{108}{109}.
+\]
+
+For Movie 3, the observed ratings are 1 and 5:
+
+\[
+v_3 =
+\frac{1(2)+5(\frac{8}{3})}
+{1+2^2+(\frac{8}{3})^2}.
+\]
+
+\[
+=\frac{\frac{46}{3}}{\frac{109}{9}}
+=\frac{138}{109}.
+\]
+
+Therefore, the updated movie factor vector is
+
+\[
+V^{(1)} =
+\begin{bmatrix}
+2\\
+\frac{108}{109}\\
+\frac{138}{109}
+\end{bmatrix}.
+\]
+
+\subsection{Final Results}
+
+After one complete ALS iteration, the resulting
+latent factor matrices are
+
+\[
+U^{(1)} =
+\begin{bmatrix}
+2\\
+2\\
+\frac{8}{3}
+\end{bmatrix},
+\qquad
+V^{(1)} =
+\begin{bmatrix}
+2\\
+\frac{108}{109}\\
+\frac{138}{109}
+\end{bmatrix}.
+\]
+
+The predicted rating matrix is obtained from
+
+\[
+\widehat{R}=U^{(1)}(V^{(1)})^\top.
+\]
+
+Thus,
+
+\[
+\widehat{R} =
+\begin{bmatrix}
+4 & \frac{216}{109} & \frac{276}{109}\\
+4 & \frac{216}{109} & \frac{276}{109}\\
+\frac{16}{3} & \frac{288}{109} & \frac{368}{109}
+\end{bmatrix}.
+\]
+
+The example demonstrates how ALS alternates between
+user and movie updates while using only observed ratings.
+All calculations are performed using exact fractions
+to avoid floating-point rounding errors.
+
+The implementation is provided in
+\texttt{src/small\_example.py}.
+The numerical results are independently checked against
+the normal equations using NumPy's linear system solver
+in \texttt{src/verify\_small\_example.py}.
