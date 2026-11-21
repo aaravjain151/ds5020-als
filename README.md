@@ -36,6 +36,10 @@ We use only numpy, pandas, matplotlib and scipy. The easiest way to see everythi
 |---|---|
 | `python src/load_data.py` | loads MovieLens 100K and builds the rating matrix R, prints its size |
 | `python src/simulate.py` | builds a rating matrix where we know the true answer, hides 70% of it, runs ALS and prints the checks |
+| `python src/small_example.py` | Iteration 3: one full ALS step on a 3 by 3 matrix with exact fractions |
+| `python src/verify_small_example.py` | Iteration 3: checks the small example a second way with numpy |
+| `python src/check_simulation.py` | Iteration 3: our ALS against the truth and against numpy, bigger matrices, stress test |
+| `python src/run_real.py` | Iteration 3: train on `u1.base`, test on `u1.test`, baselines, every k and lambda, numpy check (about 2 minutes) |
 
 ## Who did what
 
