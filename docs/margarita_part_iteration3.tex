@@ -37,11 +37,17 @@ $400 \times 320$ & 38{,}283 & 0.033 \\
 \begin{figure}[h]
   \centering
   \includegraphics[width=0.55\textwidth]{simulation_error_vs_size.png}
-  \caption{RMSE on hidden cells against the number of users (log--log axes).}
+  \caption{More data gives better guesses. Error of ALS on the hidden cells for four matrix sizes, with 30\% of cells known in each.}
   \label{fig:sizes}
 \end{figure}
 
-The error shrinks as the matrix grows. From 100 users up the slope on the log--log plot is $-1.08$. When $n_u$ doubles, the number of known cells $N$ grows 4 times, so a slope of $-1$ in $n_u$ is a slope of $-1/2$ in $N$, which is the usual $1/\sqrt{N}$ rate of a sampling error. The smallest matrix does not pass (0.414), because a user there has only about 12 known ratings for 3 unknown numbers. So with more data the guesses get closer to the truth, as the math says.
+\textbf{What Figure~\ref{fig:sizes} shows.} Each dot is one run of our ALS on a simulated matrix where we know the truth. The horizontal axis is the number of users (50, 100, 200, 400, with 80 movies for every 100 users). The vertical axis is the RMSE on the hidden cells, so lower is better. Both axes are on a log scale, so a straight line means the error follows a power of the size. The dashed line is the noise we added (0.1).
+
+\textbf{What we see.} The error falls from 0.414 to 0.147, 0.057 and 0.033. From 100 users up the dots lie almost on a straight line with slope $-1.08$. The smallest matrix is above the pass line 0.3, because a user there has only about 12 known ratings for 3 unknown numbers.
+
+\textbf{Why.} When $n_u$ doubles, the number of known cells $N$ grows 4 times, so a slope of $-1$ in $n_u$ is a slope of $-1/2$ in $N$. This is the usual $1/\sqrt{N}$ rate of a sampling error: each $u_u$ and $v_i$ is an average over more ratings, so the noise in it gets smaller.
+
+\textbf{Conclusion.} The error shrinks as the data grows, at the rate the math predicts. So our ALS is a correct estimator and not just a good fit to one matrix. The error even goes below the noise level 0.1, because it is measured against $R_{\text{true}}$, which has no noise.
 
 \subsection{Stress test with fewer known cells}
 
@@ -68,13 +74,19 @@ Share known & Ratings per user (mean, min) & RMSE on hidden cells & $J$ never in
 \begin{figure}[h]
   \centering
   \includegraphics[width=0.55\textwidth]{stress_test_known_share.png}
-  \caption{RMSE on hidden cells against the share of known cells.}
+  \caption{With too few known ratings ALS stops working. Error of ALS on the hidden cells of the $100 \times 80$ simulation as the share of known cells goes down.}
   \label{fig:stress}
 \end{figure}
 
-ALS stops recovering the matrix between 20\% and 15\% of known cells: at 20\% it still passes (0.263) and at 15\% it does not (0.416). At 10\% the error is 1.372, as bad as the filled SVD (1.394). The reason is in the system for one user. The vector $u_u$ has $k = 3$ unknown numbers, so it needs at least 3 ratings to be fixed by the data. At 10\% one user has a single rating and at 5\% one user has none, and then $V_u^\top V_u$ has rank below 3 and only $\lambda I$ keeps the system solvable (Iteration 2, Question 3). The system still has a solution, but the solution comes mostly from the penalty and not from the data.
+\textbf{What Figure~\ref{fig:stress} shows.} Each dot is one run of our ALS on the same simulated matrix, with a different share of cells kept (30\% down to 5\%). The horizontal axis is the share of known cells, and the vertical axis is the RMSE on the hidden cells. The dashed line is the pass line 0.3 from the Iteration 3 instructions, so dots below it pass.
+
+\textbf{What we see.} ALS stops recovering the matrix between 20\% and 15\% of known cells: at 20\% it still passes (0.263) and at 15\% it does not (0.416). Between 15\% and 10\% the error jumps to 1.372, as bad as the filled SVD (1.394), and then stays high.
+
+\textbf{Why.} The reason is in the system for one user. The vector $u_u$ has $k = 3$ unknown numbers, so it needs at least 3 ratings to be fixed by the data. At 10\% one user has a single rating and at 5\% one user has none, and then $V_u^\top V_u$ has rank below 3 and only $\lambda I$ keeps the system solvable (Iteration 2, Question 3). The system still has a solution, but the solution comes mostly from the penalty and not from the data.
 
 In all six runs $J$ never increases. So Question 4 of Iteration 2 holds even when the method fails: a small $J$ on the known cells does not mean good guesses on the hidden cells.
+
+\textbf{Conclusion.} ALS needs enough ratings per user and per movie, at least about $k$ of them and better several times $k$. On this matrix that means at least 20\% of cells known. MovieLens has only 6.3\%, but its matrix is much larger, so a typical user still has many ratings (median 65); the users and movies with very few ratings are where we expect the worst guesses.
 
 %=====================================================================
 \section{Real Data}
@@ -159,11 +171,13 @@ $k = 20$ & 1.539 & 1.201 & 0.998 \\
 \begin{figure}[h]
   \centering
   \includegraphics[width=0.6\textwidth]{real_test_rmse.png}
-  \caption{Test RMSE against $k$ for each $\lambda$. The dashed line is the movie mean baseline.}
+  \caption{A small $k$ or a large $\lambda$ works best on real data. Test RMSE of ALS on \texttt{u1.test} for each $k$ and $\lambda$. The dashed line is the movie mean baseline (1.033).}
   \label{fig:grid}
 \end{figure}
 
-\textbf{What the table shows.}
+\textbf{What Figure~\ref{fig:grid} shows.} It draws Table~\ref{tab:grid}. The horizontal axis is $k$, the number of factors for each user and movie. The vertical axis is the test RMSE in stars, so lower is better. Each line is one value of the penalty $\lambda$. A point below the dashed line beats the simple guess "the average rating of this movie".
+
+\textbf{What we see.}
 \begin{itemize}
   \item The best result is 0.940 at $k = 2$ and $\lambda = 1$. It is 9\% better than the movie mean (1.033), and 7 of the 12 settings beat this baseline.
   \item With a small $\lambda$ a bigger $k$ makes the test error worse. At $k = 20$ and $\lambda = 0.1$ the train RMSE is 0.470 but the test RMSE is 1.539. This is the overfitting from Step 3 of Question 1 in Iteration 2: some users have only 4 train ratings, and 20 free numbers fit 4 ratings perfectly.
@@ -172,7 +186,7 @@ $k = 20$ & 1.539 & 1.201 & 0.998 \\
 
 \textbf{Check with a library.} At the best setting we ran the Iteration 2 \texttt{als} (with \texttt{numpy.linalg.solve}) from the same start. The largest difference in $UV^\top$ over all $943 \times 1682$ cells is $1.3\times10^{-13}$, and the two test RMSE values are the same to 10 digits (0.9398201282). The difference is larger than on the simulation ($5.4\times10^{-15}$), because the real matrix has 2{,}625 systems per step instead of 180 and the ratings are larger numbers, so more rounding errors add up. It is still rounding error and not a sign or scaling convention: both codes start from the same $U$ and $V$, and each system has one solution (Iteration 2, Question 3), so there is nothing to align.
 
-\textbf{Conclusion.} On ratings that the method never saw, our ALS guesses within about 0.94 stars. This is better than both simple baselines and than the filled SVD. So the method works on real data and not only on the simulation, if $k$ is small or $\lambda$ is large enough.
+\textbf{Conclusion of Figure~\ref{fig:grid} and Table~\ref{tab:grid}.} More factors are not always better: a bigger $k$ helps only if $\lambda$ grows with it, because with few ratings per user extra factors fit the noise. On ratings that the method never saw, our ALS guesses within about 0.94 stars. This is better than both simple baselines and than the filled SVD. So the method works on real data and not only on the simulation, if $k$ is small or $\lambda$ is large enough.
 
 %=====================================================================
 \section{Verification Table}
