@@ -21,7 +21,7 @@ R =
 \begin{bmatrix}
 5 & ? & 1\\
 4 & 2 & ?\\
-? & 3 & 5
+4 & 3 & 5
 \end{bmatrix}.
 \]
 
@@ -73,12 +73,12 @@ u_2 =
 =\frac{6}{3}=2.
 \]
 
-For User 3, the observed ratings are 3 and 5:
+For User 3, the observed ratings are 4, 3 and 5:
 
 \[
 u_3 =
-\frac{3(1)+5(1)}{1+1^2+1^2}
-=\frac{8}{3}.
+\frac{4(1)+3(1)+5(1)}{1+1^2+1^2+1^2}
+=\frac{12}{4}=3.
 \]
 
 Therefore, the updated user factor vector is
@@ -88,7 +88,7 @@ U^{(1)} =
 \begin{bmatrix}
 2\\
 2\\
-\frac{8}{3}
+3
 \end{bmatrix}.
 \]
 
@@ -106,40 +106,31 @@ v_i =
 \sum_{u\in\Omega_i}u_u^2}.
 \]
 
-For Movie 1, the observed ratings are 5 and 4:
+For Movie 1, the observed ratings are 5, 4 and 4:
 
 \[
 v_1 =
-\frac{5(2)+4(2)}
-{1+2^2+2^2}
-=\frac{18}{9}=2.
+\frac{5(2)+4(2)+4(3)}
+{1+2^2+2^2+3^2}
+=\frac{30}{18}=\frac{5}{3}.
 \]
 
 For Movie 2, the observed ratings are 2 and 3:
 
 \[
 v_2 =
-\frac{2(2)+3(\frac{8}{3})}
-{1+2^2+(\frac{8}{3})^2}.
-\]
-
-\[
-=\frac{12}{1+4+\frac{64}{9}}
-=\frac{12}{\frac{109}{9}}
-=\frac{108}{109}.
+\frac{2(2)+3(3)}
+{1+2^2+3^2}
+=\frac{13}{14}.
 \]
 
 For Movie 3, the observed ratings are 1 and 5:
 
 \[
 v_3 =
-\frac{1(2)+5(\frac{8}{3})}
-{1+2^2+(\frac{8}{3})^2}.
-\]
-
-\[
-=\frac{\frac{46}{3}}{\frac{109}{9}}
-=\frac{138}{109}.
+\frac{1(2)+5(3)}
+{1+2^2+3^2}
+=\frac{17}{14}.
 \]
 
 Therefore, the updated movie factor vector is
@@ -147,9 +138,9 @@ Therefore, the updated movie factor vector is
 \[
 V^{(1)} =
 \begin{bmatrix}
-2\\
-\frac{108}{109}\\
-\frac{138}{109}
+\frac{5}{3}\\
+\frac{13}{14}\\
+\frac{17}{14}
 \end{bmatrix}.
 \]
 
@@ -163,14 +154,14 @@ U^{(1)} =
 \begin{bmatrix}
 2\\
 2\\
-\frac{8}{3}
+3
 \end{bmatrix},
 \qquad
 V^{(1)} =
 \begin{bmatrix}
-2\\
-\frac{108}{109}\\
-\frac{138}{109}
+\frac{5}{3}\\
+\frac{13}{14}\\
+\frac{17}{14}
 \end{bmatrix}.
 \]
 
@@ -185,11 +176,41 @@ Thus,
 \[
 \widehat{R} =
 \begin{bmatrix}
-4 & \frac{216}{109} & \frac{276}{109}\\
-4 & \frac{216}{109} & \frac{276}{109}\\
-\frac{16}{3} & \frac{288}{109} & \frac{368}{109}
+\frac{10}{3} & \mathbf{\frac{13}{7}} & \frac{17}{7}\\
+\frac{10}{3} & \frac{13}{7} & \mathbf{\frac{17}{7}}\\
+5 & \frac{39}{14} & \frac{51}{14}
 \end{bmatrix}.
 \]
+
+The two entries in bold are the guesses for the missing
+ratings: user 1 is expected to give movie 2
+$\frac{13}{7}\approx1.86$ stars, and user 2 is expected to
+give movie 3 $\frac{17}{7}\approx2.43$ stars.
+
+\subsection{The Objective After Each Half Step}
+
+With
+$J(U,V)=\sum_{(u,i)\in\Omega}(r_{ui}-u_uv_i)^2
++\lambda\left(\sum_u u_u^2+\sum_i v_i^2\right)$,
+the objective after the user update is
+
+\[
+\begin{aligned}
+J(U^{(1)},V^{(0)})
+&=\underbrace{9+1+4+0+1+0+4}_{\text{squared errors}}
++\underbrace{(4+4+9)+(1+1+1)}_{\text{penalty}}\\
+&=19+20=39,
+\end{aligned}
+\]
+
+and after the movie update it is
+
+\[
+J(U^{(1)},V^{(1)})=\frac{212}{7}\approx30.29.
+\]
+
+So $J$ goes down, as Question 4 of Iteration 2 says it
+must.
 
 The example demonstrates how ALS alternates between
 user and movie updates while using only observed ratings.
@@ -200,4 +221,8 @@ The implementation is provided in
 \texttt{src/small\_example.py}.
 The numerical results are independently checked against
 the normal equations using NumPy's linear system solver
-in \texttt{src/verify\_small\_example.py}.
+in \texttt{src/verify\_small\_example.py}. As a second way,
+the same script runs one step of the team's ALS in
+\texttt{src/methods.py}, which solves each system by our own
+Gaussian elimination; it gives the same $U^{(1)}$ and
+$V^{(1)}$ with a largest difference of 0.

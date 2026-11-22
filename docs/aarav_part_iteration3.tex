@@ -1,0 +1,108 @@
+% Aarav's part of the Iteration 3 report (tasks T19, T20, T23)
+% Question 2 goes after Question 1 (the small worked example)
+% Question 5 goes after Question 4
+% every number comes from src/check_als_steps.py, src/check_simulation.py or src/run_real.py
+
+%=====================================================================
+\subsection*{Question 2 ALS from scratch}
+%=====================================================================
+\textit{Owner Aarav Jain (checks and write-up; the code in \texttt{src/methods.py} was written by Margarita Kholostova). Checked by Madhu Vadhani Madasamy and Margarita Kholostova.}
+
+\textbf{What we built.} Our ALS uses no library solver. Every small system is solved by our own Gaussian elimination, and there is one function for each step of the algorithm in the Iteration 2 report (Table~\ref{tab:functions}). The same functions run the small example, the simulation and the real data.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{p{3.9cm}lp{6.2cm}}
+\hline
+Step of the Iteration 2 algorithm & Function in \texttt{src/methods.py} & What it does \\
+\hline
+1. Start & \texttt{my\_init} & random normal $U$ and $V$ with a fixed seed \\
+2. Objective & \texttt{my\_objective} & $J(U,V)$ in the matrix form of Question 1 \\
+3(a). Update every user & \texttt{my\_update\_users} & solves $(V_u^\top V_u + \lambda I)u_u = V_u^\top r_u$ \\
+3(b). Update every movie & \texttt{my\_update\_movies} & solves $(U_i^\top U_i + \lambda I)v_i = U_i^\top r_i$ \\
+Solve one $k \times k$ system & \texttt{my\_gauss\_solve} & Gaussian elimination and back substitution \\
+3(c), 4. Repeat and stop & \texttt{my\_als} & $T$ rounds, records $J_0, \dots, J_T$ \\
+6. Measure the error & \texttt{my\_rmse} & RMSE on a chosen set of cells \\
+\hline
+\end{tabular}
+\caption{One function for each step of the algorithm.}
+\label{tab:functions}
+\end{table}
+
+\textbf{Why elimination without row swaps is safe here.} \texttt{my\_gauss\_solve} never swaps rows, so it divides by the pivots $a_{11}^{(1)}, a_{22}^{(2)}, \dots, a_{kk}^{(k)}$ in order. Elimination without swaps gives the $j$-th pivot as a ratio of leading principal minors,
+\[
+a_{jj}^{(j)} = \frac{\det A_{[j]}}{\det A_{[j-1]}}, \qquad \det A_{[0]} = 1,
+\]
+where $A_{[j]}$ is the top-left $j \times j$ block of $A$. Our $A = V_u^\top V_u + \lambda I$ is symmetric positive definite (Iteration 2, Question 3), so every block $A_{[j]}$ is positive definite too and has $\det A_{[j]} > 0$. So every pivot is positive and the method never divides by zero, even for a user with no ratings, where $A = \lambda I$. The cost is about $\tfrac{2}{3}k^3$ flops for the elimination and $k^2$ for the back substitution, the same count we used for \texttt{numpy.linalg.solve} in the Iteration 2 algorithm.
+
+\begin{sloppypar}\textbf{Check against \texttt{numpy.linalg.solve}.} One user is not enough to trust the code, so our script \texttt{src/check\_als\_steps.py} takes the factors from the middle of the run (after 25 steps) and solves every system of the next step twice, with \texttt{my\_gauss\_solve} and with \texttt{numpy.linalg.solve} (Table~\ref{tab:q2}).\end{sloppypar}
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{lll}
+\hline
+ & Simulation $100 \times 80$, $k = 3$ & MovieLens \texttt{u1.base}, $k = 2$ \\
+\hline
+Systems compared & 180 (100 users, 80 movies) & 2{,}625 (943 users, 1{,}682 movies) \\
+Largest $|x_{\text{ours}} - x_{\text{numpy}}|$ & $8.9\times10^{-16}$ & $5.0\times10^{-15}$ \\
+Largest residual $|Ax_{\text{ours}} - b|$ & $1.4\times10^{-14}$ & $4.6\times10^{-13}$ \\
+Largest condition number of $A$ & 5.0 & 54.5 \\
+Whole run: largest $|UV^\top - U_{\text{lib}}V_{\text{lib}}^\top|$ & $7.1\times10^{-15}$ & $1.3\times10^{-13}$ \\
+\hline
+\end{tabular}
+\caption{Our Gaussian elimination against \texttt{numpy.linalg.solve}, $\lambda = 1$. The exact last digits of these tiny numbers can change from one computer to another.}
+\label{tab:q2}
+\end{table}
+
+\textbf{What the numbers mean.} A float keeps about 16 digits, so the smallest error we can hope for is about $2.2\times10^{-16}$ times the size of the numbers. The condition number says how much a system can blow up such an error, so we expect differences up to about $54.5 \times 2.2\times10^{-16} \approx 1.2\times10^{-14}$ on the real data, and we see $5.0\times10^{-15}$. The residual is larger than the difference in $x$, because on the real data each entry of $A$ is a sum over all the movies a user rated (several hundred for some users), so the entries of $A$ and $b$ are large numbers. After the whole run of 50 steps the two codes still agree to $1.3\times10^{-13}$ and give the same test RMSE to 10 digits (0.9398201282).
+
+\textbf{Conclusion.} Our elimination gives the same answer as the library on all 2{,}805 systems, up to rounding error, and the theory above says it cannot break on our systems. So the ALS in \texttt{src/methods.py} is a correct from-scratch version of the algorithm.
+
+%=====================================================================
+\subsection*{Question 5 The objective after every step}
+%=====================================================================
+\textit{Owner Aarav Jain. Checked by Madhu Vadhani Madasamy.}
+
+\textbf{What we check.} Iteration 2, Question 4 says that $J$ cannot go up after the user update and cannot go up after the movie update, because each one minimizes $J$ exactly over one block with the other block fixed. So we record $J$ after every half step, not only after every full step: $J_0$, then $J$ after the first user update, then after the first movie update, and so on, 101 values for 50 steps (Figure~\ref{fig:objective}, Table~\ref{tab:q5}).
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.95\textwidth]{objective_half_steps.png}
+  \caption{$J$ goes down after every user update (dots) and every movie update (squares), on the simulation (left) and on MovieLens (right). The vertical axis is on a log scale.}
+  \label{fig:objective}
+\end{figure}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lll}
+\hline
+ & Simulation, $k = 3$, $\lambda = 1$ & MovieLens, $k = 2$, $\lambda = 1$ \\
+\hline
+$J_0$ (random start) & 15{,}227.41 & 1{,}252{,}842.76 \\
+$J$ after 50 steps & 546.68 & 68{,}742.47 \\
+Largest change after a user update & $-1.3\times10^{-5}$ & $-17.8$ \\
+Largest change after a movie update & $-1.1\times10^{-5}$ & $-17.4$ \\
+$J$ never increases & yes (100 of 100 half steps) & yes (100 of 100 half steps) \\
+Share of the total drop in step 1 & 67\% & 28\% \\
+Relative change in the last step & $4.3\times10^{-8}$ & $5.1\times10^{-4}$ \\
+\hline
+\end{tabular}
+\caption{The objective after every half step (from \texttt{src/check\_als\_steps.py}).}
+\label{tab:q5}
+\end{table}
+
+\textbf{What Figure~\ref{fig:objective} shows.} Each panel is one run of our ALS. The horizontal axis is the ALS step, and the dots and squares sit halfway and at the end of each step. The vertical axis is $J$ on a log scale, so equal heights mean equal percentage changes.
+
+\textbf{What we see.}
+\begin{itemize}
+  \item $J$ never goes up, after any of the 200 half steps. The largest change is negative in both runs, so even the smallest step is a real decrease and not rounding.
+  \item On the simulation $J$ falls fast and is flat after about 10 steps; the last step changes it by only $4.3\times10^{-8}$ of its value. Five different random starts (seeds 0 to 4) all end at $J = 546.6803$ with the same RMSE 0.1466 on the hidden cells.
+  \item On MovieLens $J$ is still going down slowly after 50 steps (by $5.1\times10^{-4}$ of its value in the last step). We checked whether this matters for the results: at $k = 2$ and $\lambda = 1$ the test RMSE is 0.9398 after 50 steps, 0.9389 after 100 and 0.9385 after 200. So 50 steps are enough for the conclusions of Question 4, and the numbers there would change only in the third decimal.
+  \item $J$ also never increases in the 12 real-data runs of Question 4 and the 6 runs of the stress test (\texttt{src/run\_real.py}, \texttt{src/check\_simulation.py}).
+\end{itemize}
+
+\textbf{Why.} Each half step solves the systems of Question 2 exactly, and each system has exactly one solution because $A$ is positive definite. The old $u_u$ is one of the vectors the update could pick, so the new $u_u$ is at least as good, and the same holds for $v_i$. $J$ is a sum of squares, so it cannot go below 0, and a sequence that never goes up and is bounded below must converge to a limit. This explains the flat tail. It does not say the limit is the global minimum of $J$, because $J$ is not convex in $U$ and $V$ together.
+
+\textbf{Conclusion.} The objective after every step behaves exactly as Iteration 2, Question 4 predicts, on both the simulation and the real data, which is a strong check that the code is right. But a falling $J$ does not mean good guesses: in the stress test with 10\% known cells $J$ still never increases while the error on the hidden cells is 1.372. $J$ measures the fit to the known ratings, and only the test error measures the guesses for the unknown ones.

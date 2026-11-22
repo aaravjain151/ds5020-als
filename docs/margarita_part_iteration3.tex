@@ -1,18 +1,18 @@
 %=====================================================================
 \section{Simulation Test}
 %=====================================================================
-\textit{Owner Margarita Kholostova. Checked by \underline{\hspace{4cm}}}
+\textit{Owner Margarita Kholostova. Checked by Aarav Jain.}
 
 
 \textbf{What we test.} We run our own ALS (\texttt{my\_als} in \texttt{src/methods.py}, which solves every small system with our own Gaussian elimination) on the Iteration 2 simulation. The data, $k = 3$, $\lambda = 1$, 50 steps and seed 0 are the same as in Iteration 2. We compare the result with two things, the true matrix and a library.
 
 \subsection{Compare with the truth}
 
-The truth is $R_{\text{true}}$ on the 5{,}719 hidden cells. Our ALS has RMSE 0.147 on these cells, which is below the pass line 0.3 and close to the noise 0.1 that we added. It is not exactly 0.1, because each user vector $u_u$ is found from about 23 noisy ratings, so the noise also moves $U$ and $V$ a little. So the method finds the hidden values up to the size of the noise.
+The truth is $R_{\text{true}}$ on the 5{,}719 hidden cells. Our ALS has RMSE 0.147 on these cells, which is below the pass line 0.3. Most of this error comes from the penalty and not from the noise: $\lambda = 1$ pulls every $u_u$ and $v_i$ a little toward 0, and a user here has only about 23 ratings to push back. With $\lambda = 0.01$ the same run has RMSE 0.059 (\texttt{src/check\_als\_steps.py}, part 3). So the method finds the hidden values, and $\lambda = 1$ gives up a little accuracy here for protection against overfitting, which matters on the real data (Question 4).
 
 \subsection{Compare with a library}
 
-The library version is the Iteration 2 function \texttt{als}, which solves the same systems with \texttt{numpy.linalg.solve}. Both start from the same random $U$ and $V$. After 50 steps the largest difference between the two matrices $UV^\top$ is $5.4\times10^{-15}$. For one user the two solutions of $(V_u^\top V_u + \lambda I)u_u = V_u^\top r_u$ differ by $5.6\times10^{-17}$, and putting our $u_u$ back into the system gives a largest residual of $1.8\times10^{-15}$. These numbers are rounding error: both codes compute the same formula from the same data, and a float keeps about 16 digits. So our Gaussian elimination is correct.
+The library version is the Iteration 2 function \texttt{als}, which solves the same systems with \texttt{numpy.linalg.solve}. Both start from the same random $U$ and $V$. After 50 steps the largest difference between the two matrices $UV^\top$ is $7.1\times10^{-15}$. For one user the two solutions of $(V_u^\top V_u + \lambda I)u_u = V_u^\top r_u$ differ by less than $10^{-16}$, and putting our $u_u$ back into the system gives a largest residual of $1.8\times10^{-15}$. The last digits of these tiny numbers change from one computer to another; Question 2 repeats the check for every user and movie. These numbers are rounding error: both codes compute the same formula from the same data, and a float keeps about 16 digits. So our Gaussian elimination is correct.
 
 \subsection{Error against the size of the matrix}
 
@@ -45,9 +45,9 @@ $400 \times 320$ & 38{,}283 & 0.033 \\
 
 \textbf{What we see.} The error falls from 0.414 to 0.147, 0.057 and 0.033. From 100 users up the dots lie almost on a straight line with slope $-1.08$. The smallest matrix is above the pass line 0.3, because a user there has only about 12 known ratings for 3 unknown numbers.
 
-\textbf{Why.} When $n_u$ doubles, the number of known cells $N$ grows 4 times, so a slope of $-1$ in $n_u$ is a slope of $-1/2$ in $N$. This is the usual $1/\sqrt{N}$ rate of a sampling error: each $u_u$ and $v_i$ is an average over more ratings, so the noise in it gets smaller.
+\textbf{Why.} If the noise were the only source of error, the error would be about $\sigma\sqrt{k(n_u+n_i)/N}$, the noise times the square root of the number of unknowns over the number of known cells. When $n_u$ doubles, $n_u+n_i$ doubles and $N$ grows 4 times, so this falls with slope $-1/2$ (it is 0.049, 0.034 and 0.024 for the three larger sizes). Our slope is steeper because of the penalty: $\lambda = 1$ pulls each $u_u$ toward 0 by about $\lambda/|\Omega_u|$ of its size, and $|\Omega_u|$ grows like $n_u$, so this part of the error falls with slope $-1$. With a small penalty, $\lambda = 0.01$, the errors are 0.059, 0.036 and 0.025 and the slope is $-0.63$, close to the noise rate (\texttt{src/check\_als\_steps.py}, part 3).
 
-\textbf{Conclusion.} The error shrinks as the data grows, at the rate the math predicts. So our ALS is a correct estimator and not just a good fit to one matrix. The error even goes below the noise level 0.1, because it is measured against $R_{\text{true}}$, which has no noise.
+\textbf{Conclusion.} The error shrinks as the data grows, and both parts of it shrink at the rate the math predicts: the pull of the penalty like $1/n_u$ and the noise like $1/\sqrt{n_u}$. So our ALS is a correct estimator and not just a good fit to one matrix. The error even goes below the noise level 0.1, because it is measured against $R_{\text{true}}$, which has no noise.
 
 \subsection{Stress test with fewer known cells}
 
@@ -140,7 +140,7 @@ For the 32 movies with no train rating the system for $v_i$ is $\lambda I\, v_i 
 \textbf{Conclusion.} $\tilde R_k$ is the best fit to $\tilde R$, but 95\% of the cells of $\tilde R$ are the number $\mu$ that we put there ourselves (80{,}000 real ratings out of 1{,}586{,}126 cells). So the SVD mostly learns our filling and not the ratings, and on MovieLens it is even worse than the mean of each movie (1.033). The SVD here is \texttt{numpy.linalg.svd}, because it is only a baseline to compare with and not our method.
 
 \subsection*{Question 4 Train and test split and the test RMSE}
-\textit{Owner Margarita Kholostova. Checked by \underline{\hspace{4cm}}}
+\textit{Owner Margarita Kholostova. Checked by Aarav Jain.}
 
 \textbf{Definition.} Let $\Omega_{\text{test}}$ be the set of the 20{,}000 test pairs. The method never sees them. We find $U$ and $V$ from the train pairs only and then compute
 \[
@@ -182,9 +182,10 @@ $k = 20$ & 1.539 & 1.201 & 0.998 \\
   \item The best result is 0.940 at $k = 2$ and $\lambda = 1$. It is 9\% better than the movie mean (1.033), and 7 of the 12 settings beat this baseline.
   \item With a small $\lambda$ a bigger $k$ makes the test error worse. At $k = 20$ and $\lambda = 0.1$ the train RMSE is 0.470 but the test RMSE is 1.539. This is the overfitting from Step 3 of Question 1 in Iteration 2: some users have only 4 train ratings, and 20 free numbers fit 4 ratings perfectly.
   \item With $\lambda = 10$ the test error stays between 0.984 and 0.998 for every $k$. So the penalty does the job we added it for.
+  \item We picked $k = 2$ and $\lambda = 1$ because they have the lowest test RMSE, so 0.940 is slightly optimistic: the test set was used to choose the setting. A fully fair number would choose $k$ and $\lambda$ on a validation part of \texttt{u1.base} and use \texttt{u1.test} only once. All seven settings that beat the movie mean are between 0.940 and 0.998, so the conclusion that ALS beats both baselines and the filled SVD does not depend on this choice.
 \end{itemize}
 
-\textbf{Check with a library.} At the best setting we ran the Iteration 2 \texttt{als} (with \texttt{numpy.linalg.solve}) from the same start. The largest difference in $UV^\top$ over all $943 \times 1682$ cells is $1.3\times10^{-13}$, and the two test RMSE values are the same to 10 digits (0.9398201282). The difference is larger than on the simulation ($5.4\times10^{-15}$), because the real matrix has 2{,}625 systems per step instead of 180 and the ratings are larger numbers, so more rounding errors add up. It is still rounding error and not a sign or scaling convention: both codes start from the same $U$ and $V$, and each system has one solution (Iteration 2, Question 3), so there is nothing to align.
+\begin{sloppypar}\textbf{Check with a library.} At the best setting we ran the Iteration 2 \texttt{als} (with \texttt{numpy.linalg.solve}) from the same start. The largest difference in $UV^\top$ over all $943 \times 1682$ cells is $1.3\times10^{-13}$, and the two test RMSE values are the same to 10 digits (0.9398201282). The difference is larger than on the simulation ($7.1\times10^{-15}$), because the real matrix has 2{,}625 systems per step instead of 180 and the ratings are larger numbers, so more rounding errors add up. It is still rounding error and not a sign or scaling convention: both codes start from the same $U$ and $V$, and each system has one solution (Iteration 2, Question 3), so there is nothing to align.\end{sloppypar}
 
 \textbf{Conclusion of Figure~\ref{fig:grid} and Table~\ref{tab:grid}.} More factors are not always better: a bigger $k$ helps only if $\lambda$ grows with it, because with few ratings per user extra factors fit the noise. On ratings that the method never saw, our ALS guesses within about 0.94 stars. This is better than both simple baselines and than the filled SVD. So the method works on real data and not only on the simulation, if $k$ is small or $\lambda$ is large enough.
 
@@ -194,26 +195,31 @@ $k = 20$ & 1.539 & 1.201 & 0.998 \\
 \textit{Owner Margarita Kholostova. Checked by \underline{\hspace{4cm}}}
 
 % rows for the simulation and the real data
-% the row for the small example comes from src/small_example.py (T17), add it at the top
 
 \begin{table}[h]
 \centering
 \small
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{lllll}
 \hline
 Data & Quantity & Compared with & Difference & Pass? \\
 \hline
 Simulation & $UV^\top$, hidden cells & $R_{\text{true}}$ & RMSE $= 0.147$ & yes \\
-Simulation & $UV^\top$ & ALS with numpy solve & $\max|\cdot| = 5.4\times10^{-15}$ & yes \\
-Simulation & $u_u$ for one user & numpy solve & $\max|\cdot| = 5.6\times10^{-17}$ & yes \\
+Small example & $U^{(1)}, V^{(1)}$ from \texttt{methods.py} & exact fractions & $\max|\cdot| = 0$ & yes \\
+Small example & $J$ after the movie update & $J$ after the user update (39) & $212/7 \approx 30.29$ & yes \\
+Simulation & $UV^\top$ & ALS with numpy solve & $\max|\cdot| = 7.1\times10^{-15}$ & yes \\
+Simulation & all 180 systems of one step & numpy solve & $\max|\cdot| = 8.9\times10^{-16}$ & yes \\
+Simulation & $J$ after each of 100 half steps & never increases & largest change $-1.1\times10^{-5}$ & yes \\
 Simulation & largest step of $J$ & $\le 0$ & $-2.4\times10^{-5}$ & yes \\
 Simulation & filled SVD, hidden cells & ALS (0.147) & RMSE $= 1.394$ & yes \\
 Stress test (10\% known) & $UV^\top$, hidden cells & $R_{\text{true}}$ & RMSE $= 1.372$ & fails \\
 Real data & $UV^\top$ & ALS with numpy solve & $\max|\cdot| = 1.3\times10^{-13}$ & yes \\
+Real data & all 2{,}625 systems of one step & numpy solve & $\max|\cdot| = 5.0\times10^{-15}$ & yes \\
+Real data & $J$ after each of 100 half steps & never increases & largest change $-17.4$ & yes \\
 Real data & test RMSE & movie mean (1.033) & 0.940 & yes \\
 Real data (12 runs) & largest step of $J$ & $\le 10^{-9}$ & 12 of 12 & yes \\
 \hline
-\end{tabular}
+\end{tabular}}
 \caption{Verification table for the simulation and the real data.}
 \label{tab:verify}
 \end{table}
